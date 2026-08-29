@@ -30,16 +30,16 @@ FetchContent_MakeAvailable(opencv)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 # Main library - only create if source files exist
-file(GLOB EXERCISE_SOURCES 
-    "src/exercise_recognizer.cpp"
-    "src/squat_counter.cpp"
-    "src/pushup_counter.cpp"
-    "src/pullup_counter.cpp"
-)
-
-if(EXERCISE_SOURCES)
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/exercise_recognizer.cpp" OR 
+   EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/squat_counter.cpp" OR
+   EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/pushup_counter.cpp" OR
+   EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/pullup_counter.cpp")
+   
     add_library(exercise_recognition
-        ${EXERCISE_SOURCES}
+        src/exercise_recognizer.cpp
+        src/squat_counter.cpp
+        src/pushup_counter.cpp
+        src/pullup_counter.cpp
     )
 
     target_include_directories(exercise_recognition PUBLIC 
@@ -54,9 +54,24 @@ else()
     set(EXERCISE_RECOGNITION_LIB "")
 endif()
 
+# Test executable for Windows camera feed
+if(WIN32 AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/windows_camera_test.cpp")
+    add_executable(camera_test tests/windows_camera_test.cpp)
+    target_include_directories(camera_test PRIVATE ${opencv_INCLUDE_DIRS})
+    
+    if(EXERCISE_RECOGNITION_LIB)
+        target_link_libraries(camera_test PRIVATE ${EXERCISE_RECOGNITION_LIB} opencv_core opencv_imgproc opencv_videoio)
+    else()
+        target_link_libraries(camera_test PRIVATE opencv_core opencv_imgproc opencv_videoio)
+    endif()
+    
+    # Windows-specific libraries
+    target_link_libraries(camera_test PRIVATE user32 gdi32)
+endif()
+
 # Generic camera test (cross-platform)
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/windows_camera_test.cpp")
-    add_executable(camera_test_generic tests/windows_camera_test.cpp)
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/camera_test.cpp")
+    add_executable(camera_test_generic tests/camera_test.cpp)
     target_include_directories(camera_test_generic PRIVATE ${opencv_INCLUDE_DIRS})
     
     if(EXERCISE_RECOGNITION_LIB)
@@ -64,11 +79,6 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/windows_camera_test.cpp")
     else()
         target_link_libraries(camera_test_generic PRIVATE opencv_core opencv_imgproc opencv_videoio)
     endif()
-    
-    # Windows-specific libraries
-    if(WIN32)
-        target_link_libraries(camera_test_generic PRIVATE user32 gdi32)
-    endif()
 else()
-    message(STATUS "windows_camera_test.cpp not found - test executable will not be built")
+    message(STATUS "camera_test.cpp not found - generic test executable will not be built")
 endif()
